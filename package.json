@@ -16,12 +16,19 @@
   "license": "MIT",
   "devDependencies": {
     "browser-sync": "^2.23.5",
+    "del": "^3.0.0",
     "gulp": "github:gulpjs/gulp#4.0",
     "gulp-autoprefixer": "^4.1.0",
+    "gulp-cache": "^1.0.2",
+    "gulp-clean": "^0.4.0",
+    "gulp-concat": "^2.6.1",
     "gulp-csso": "^3.0.1",
     "gulp-html": "^0.4.7",
+    "gulp-imagemin": "^4.1.0",
     "gulp-notify": "^3.1.0",
     "gulp-sass": "^3.1.0",
-    "gulp-sourcemaps": "^2.6.3"
+    "gulp-sourcemaps": "^2.6.3",
+    "gulp-tinypng": "^1.0.2",
+    "gulp-uglify": "^3.0.0"
   }
 }
