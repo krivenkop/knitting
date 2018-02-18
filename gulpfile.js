@@ -1,195 +1,130 @@
-'use strict';
+var gulp           = require('gulp'),
+		gutil          = require('gulp-util' ),
+		sass           = require('gulp-sass'),
+		browserSync    = require('browser-sync'),
+		concat         = require('gulp-concat'),
+		uglify         = require('gulp-uglify'),
+		cleanCSS       = require('gulp-clean-css'),
+		rename         = require('gulp-rename'),
+		del            = require('del'),
+		imagemin       = require('gulp-imagemin'),
+		cache          = require('gulp-cache'),
+		autoprefixer   = require('gulp-autoprefixer'),
+		ftp            = require('vinyl-ftp'),
+		notify         = require("gulp-notify"),
+		rsync          = require('gulp-rsync');
 
-var gulp = require('gulp');
-var gp = require('gulp-load-plugins')();
-var browserSync = require('browser-sync').create();
-var del = require('del');
+// Пользовательские скрипты проекта
 
-gulp.task('html-dist', function() {
-  return gulp
-    .src('src/*.html')
-    .pipe(gp.html())
-    .pipe(gulp.dest('dist/'));
+gulp.task('common-js', function() {
+	return gulp.src([
+		'app/js/common.js',
+		])
+	.pipe(concat('common.min.js'))
+	.pipe(uglify())
+	.pipe(gulp.dest('app/js'));
 });
 
-// =============================================================
-// = DEV TASKS Start                                           =
-// =============================================================
-
-// *
-// *
-// *
-// *
-//  *************************************************************
-//  * HTML task(dev): connect browserSync to html files         *
-//  *************************************************************
-gulp.task('html', function() {
-  return gulp.src('src/*.html').on('end', browserSync.reload);
+gulp.task('js', ['common-js'], function() {
+	return gulp.src([
+		'app/libs/jquery/dist/jquery.min.js',
+		'app/libs/owl.carousel/dist/owl.carousel.min.js',
+		'app/js/common.min.js', // Всегда в конце
+		])
+	.pipe(concat('scripts.min.js'))
+	// .pipe(uglify()) // Минимизировать весь js (на выбор)
+	.pipe(gulp.dest('app/js'))
+	.pipe(browserSync.reload({stream: true}));
 });
 
-// *
-// *
-// *
-// *
-//  *************************************************************
-//  * SASS task(dev): Compile SASS to CSS                       *
-//  *                 Minificate CSS                            *
-//  *                 Add prefixes to CSS attributes            *
-//  *                 Add sourcemap                             *
-//  *                 connect browserSync                       *
-//  *************************************************************
+gulp.task('browser-sync', function() {
+	browserSync({
+		server: {
+			baseDir: 'app'
+		},
+		notify: false,
+		// tunnel: true,
+		// tunnel: "projectmane", //Demonstration page: http://projectmane.localtunnel.me
+	});
+});
+
 gulp.task('sass', function() {
-  return gulp
-    .src('src/sass/main.sass')
-    .pipe(gp.sourcemaps.init())
-    .pipe(gp.sass())
-    .pipe(
-      gp.autoprefixer({
-        browsers: ['last 3 versions'],
-        cascade: false,
-      })
-    )
-    .on(
-      'error',
-      gp.notify.onError({
-        title: 'Error running SASS',
-      })
-    )
-    .pipe(gp.csso())
-    .pipe(gp.sourcemaps.write())
-    .pipe(gulp.dest('src/css'))
-    .pipe(
-      browserSync.reload({
-        stream: true,
-      })
-    );
+	return gulp.src('app/sass/**/*.sass')
+	.pipe(sass({outputStyle: 'expand'}).on("error", notify.onError()))
+	.pipe(rename({suffix: '.min', prefix : ''}))
+	.pipe(autoprefixer(['last 15 versions']))
+	.pipe(cleanCSS()) // Опционально, закомментировать при отладке
+	.pipe(gulp.dest('app/css'))
+	.pipe(browserSync.reload({stream: true}));
 });
 
-//  *************************************************************
-//  * COMMON task(dev): Minify common.js                        *
-//  *************************************************************
-gulp.task('common', function() {
-  return gulp
-    .src(['src/js/common.js'])
-    .pipe(gp.concat('common.min.js'))
-    .pipe(gp.uglify())
-    .pipe(gulp.dest('src/js'))
-    .on('end', browserSync.reload);
-});
-
-//  *************************************************************
-//  * SCRIPT task(dev): Minify all scripts in one file          *
-//  *************************************************************
-gulp.task('scripts', function() {
-  return gulp
-    .src(['src/libs/jquery/jquery.min.js'])
-    .pipe(gp.concat('scripts.min.js'))
-    .pipe(gp.uglify())
-    .pipe(gulp.dest('src/js'))
-    .pipe(
-      browserSync.reload({
-        stream: true,
-      })
-    );
-});
-
-// *
-// *
-// *
-// *
-//  *************************************************************
-//  * WATCH task(dev): Enable watch to all CSS and HTML         *
-//  *************************************************************
-gulp.task('watch', function() {
-  gulp.watch('src/sass/**/*.sass', gulp.series('sass'));
-  gulp.watch('src/*.html', gulp.series('html'));
-  gulp.watch('src/js/common.js', gulp.series('common'));
-});
-
-// *
-// *
-// *
-// *
-//  *************************************************************
-//  * SERVE task(dev): Enable browserSync                       *
-//  *                  Connect browserSync to libs directory    *
-//  *                  Connect browserSync to assets directory  *
-//  *************************************************************
-
-gulp.task('serve', function() {
-  browserSync.init({
-    server: {
-      baseDir: './src',
-    },
-  });
-  browserSync.watch(['src/libs', 'src/assets'], browserSync.reload);
-});
-
-// *
-// *
-// *
-// *
-//  *************************************************************
-//  * DEFAULT task: Include other dev tasks                     *
-//  *               starts by command "gulp"                    *
-//  *************************************************************
-
-gulp.task(
-  'default',
-  gulp.series('sass', 'scripts', 'common', gulp.parallel('watch', 'serve'))
-);
-
-// =============================================================
-// = DEV TASKS END                                             =
-// =============================================================
-
-// =============================================================
-// = DIST TASKS START                                          =
-// =============================================================
-
-gulp.task('buildJS', function() {
-  return gulp
-    .src(['src/js/scripts.min.js', 'src/js/common.min.js'])
-    .pipe(gulp.dest('dist/js'));
-});
-
-gulp.task('buildCSS', function() {
-  return gulp.src(['src/css/main.css']).pipe(gulp.dest('dist/css'));
-});
-
-gulp.task('buildHTML', function() {
-  return gulp.src(['src/*.html']).pipe(gulp.dest('dist'));
+gulp.task('watch', ['sass', 'js', 'browser-sync'], function() {
+	gulp.watch('app/sass/**/*.sass', ['sass']);
+	gulp.watch(['libs/**/*.js', 'app/js/common.js'], ['js']);
+	gulp.watch('app/*.html', browserSync.reload);
 });
 
 gulp.task('imagemin', function() {
-  return gulp
-    .src('src/assets/img/**/*')
-    .pipe(gp.cache(gp.imagemin()))
-    .pipe(gulp.dest('dist/assets/img'));
+	return gulp.src('app/img/**/*')
+	.pipe(cache(imagemin())) // Cache Images
+	.pipe(gulp.dest('dist/img')); 
 });
 
-gulp.task('removedist', function() {
-  return gulp.src('dist', { read: false, allowEmpty: true }).pipe(gp.clean());
+gulp.task('build', ['removedist', 'imagemin', 'sass', 'js'], function() {
+
+	var buildFiles = gulp.src([
+		'app/*.html',
+		'app/.htaccess',
+		]).pipe(gulp.dest('dist'));
+
+	var buildCss = gulp.src([
+		'app/css/main.min.css',
+		]).pipe(gulp.dest('dist/css'));
+
+	var buildJs = gulp.src([
+		'app/js/scripts.min.js',
+		]).pipe(gulp.dest('dist/js'));
+
+	var buildFonts = gulp.src([
+		'app/fonts/**/*',
+		]).pipe(gulp.dest('dist/fonts'));
+
 });
 
-gulp.task('clearcache', function() {
-  return gp.cache.clearAll();
+gulp.task('deploy', function() {
+
+	var conn = ftp.create({
+		host:      'hostname.com',
+		user:      'username',
+		password:  'userpassword',
+		parallel:  10,
+		log: gutil.log
+	});
+
+	var globs = [
+	'dist/**',
+	'dist/.htaccess',
+	];
+	return gulp.src(globs, {buffer: false})
+	.pipe(conn.dest('/path/to/folder/on/server'));
+
 });
 
-gulp.task(
-  'build',
-  gulp.series(
-    'removedist',
-    'imagemin',
-    'sass',
-    'common',
-    'scripts',
-    'buildHTML',
-    'buildCSS',
-    'buildJS'
-  )
-);
+gulp.task('rsync', function() {
+	return gulp.src('dist/**')
+	.pipe(rsync({
+		root: 'dist/',
+		hostname: 'username@yousite.com',
+		destination: 'yousite/public_html/',
+		// include: ['*.htaccess'], // Скрытые файлы, которые необходимо включить в деплой
+		recursive: true,
+		archive: true,
+		silent: false,
+		compress: true
+	}));
+});
 
-// =============================================================
-// = DIST TASKS END                                            =
-// =============================================================
+gulp.task('removedist', function() { return del.sync('dist'); });
+gulp.task('clearcache', function () { return cache.clearAll(); });
+
+gulp.task('default', ['watch']);

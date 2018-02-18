@@ -1,3 +1,0 @@
-$(function() {
-  // COMMONJS SCRIPTS HERE
-});
